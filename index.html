@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Texture Tool</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    input, button {
+      margin: 5px 0;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <input type="file" id="textureInput" accept="image/*" />
+    <button id="exportButton">Export Albedo</button>
+  </div>
+  <script>
+    // Initialize scene, camera, and renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Add orbit controls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    // Load 3D model
+    const loader = new THREE.GLTFLoader();
+    let model, textureMaterial;
+
+    loader.load('model.glb', (gltf) => {
+      model = gltf.scene;
+      scene.add(model);
+
+      // Apply basic material to all meshes
+      model.traverse((child) => {
+        if (child.isMesh) {
+          textureMaterial = new THREE.MeshStandardMaterial({ map: null });
+          child.material = textureMaterial;
+        }
+      });
+    });
+
+    // Set camera position
+    camera.position.set(2, 2, 5);
+    controls.update();
+
+    // Load texture and apply to model
+    document.getElementById('textureInput').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const texture = new THREE.TextureLoader().load(e.target.result);
+          texture.flipY = false; // Correct orientation
+          textureMaterial.map = texture;
+          textureMaterial.needsUpdate = true;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Export albedo map
+    document.getElementById('exportButton').addEventListener('click', () => {
+      if (textureMaterial.map) {
+        const link = document.createElement('a');
+        link.download = 'albedo.png';
+        link.href = textureMaterial.map.image.src;
+        link.click();
+      } else {
+        alert('Please upload a texture first.');
+      }
+    });
+
+    // Render loop
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
